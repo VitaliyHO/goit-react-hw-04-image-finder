@@ -1,66 +1,59 @@
-import './App.css';
-import React, { Component } from 'react';
-import { SearchBar } from './Components/SearchBar/SearchBar';
-import { fetchImages } from './Helpers/PixabeyApi';
-import { ImageGallery } from './Components/ImageGallery/ImageGallery';
-import { Button } from './Components/Button/Button';
-import { Loader } from './Components/Loader/Loader';
+import "./App.css";
+import { useState, useEffect } from "react";
+import { SearchBar } from "./Components/SearchBar/SearchBar";
+import { fetchImages } from "./Helpers/PixabeyApi";
+import { ImageGallery } from "./Components/ImageGallery/ImageGallery";
+import { Button } from "./Components/Button/Button";
+import { Loader } from "./Components/Loader/Loader";
 
+function App() {
+  const [images, setImages] = useState([]);
+  const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [totalHits, setTotalHits] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
 
-class App extends Component {
+  useEffect(() => {
+    setPage(1);
+  }, [query]);
 
-  state = {
-    images: [],
-    query: '',
-    page: 1,
-    totalHits: 0,
-    isLoading: false
-  }
+  useEffect(() => {
+    setIsLoading(true);
+    fetchImages(query, page)
+      .then((data) => {
+        setImages(page === 1 ? data.hits : [...images, ...data.hits]);
+        setTotalHits(
+          page === 1
+            ? data.totalHits - data.hits.length
+            : data.totalHits - [...images, ...data.hits].length
+        );
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
+  }, [query, page]);
 
+  const handleSubmitForm = (query) => {
+    setQuery(query);
+  };
 
+  const handleLoadMoreBtn = () => {
+    setPage(page + 1);
+  };
 
-
-  componentDidUpdate(_, prevState) {
-    const { query, page } = this.state;
-
-    if (prevState.query !== query || prevState.page !== page) {
-      if (prevState.query !== query) {
-        this.setState({ page: 1 })
-      }
-      this.setState({ isLoading: true })
-      fetchImages(query, page).then(
-        (data) => {
-          this.setState(prev => ({
-            images: page === 1 ? data.hits : [...prev.images, ...data.hits],
-            totalHits: page === 1 ? data.totalHits - data.hits.length : data.totalHits - [...prev.images, ...data.hits].length
-          }))
-        }).finally(() => {
-          this.setState({ isLoading: false })
-        })
-    }
-
-
-  }
-
-  handleSubmitForm = (query) => {
-    this.setState({ query })
-  }
-
-  handleLoadMoreBtn = () => {
-    this.setState(prevState => ({ page: prevState.page + 1 }))
-  }
-
-
-  render() {
-    return (
-      <div className="App">
-        <SearchBar handleSubmit={this.handleSubmitForm} />
-        <ImageGallery images={this.state.images} />
-        {this.state.isLoading ? <Loader /> : (this.state.totalHits ? <Button handleClick={this.handleLoadMoreBtn} /> : <></>)}
-        
-      </div>
-    );
-  }
+  return (
+    <div className="App">
+      <SearchBar handleSubmit={handleSubmitForm} />
+      <ImageGallery images={images} />
+      {isLoading ? (
+        <Loader />
+      ) : totalHits ? (
+        <Button handleClick={handleLoadMoreBtn} />
+      ) : (
+        <></>
+      )}
+    </div>
+  );
 }
 
 export default App;
